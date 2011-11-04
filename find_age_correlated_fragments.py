@@ -13,78 +13,78 @@ TWINS =  sorted(twin_age, key = lambda x: twin_age[x])
 TWIN_PAIR_AGES = [twin_age[t1] for t1, t2 in twinpairs]
 
 
-def mean(array):
-    return float(sum(array))/len(array)
 
-def dotprod(v1, ages, eucl_ages = None, mean_ages = None):
-    m1 = mean(v1)
-    return sum((val1 - m1) * (val2 - mean_ages)  for val1, val2 in izip(v1, ages))
+getvf = lambda data, s: [data[t][s] for t in TWINS]
+getvd = lambda data, s: [abs(data[t1][s] - data[t2][s]) for t1, t2 in twinpairs]
+
+
+
+def gen_random_ages():
+    random_ages = []
+    for i in range(100):
+        _x = twin_age.values()
+        random.shuffle(_x)
+        random_ages.append(_x)
+    return random_ages
+
+
+def cc(sites, data, ages, deltas = False):
+    res = {}
+    for s in sites:
+        values = (getvd if deltas else getvf)(data, s)
+        if all(v == 0 for v in values):
+            continue
+
+        res[s] = {}
+        res[s]['score'], res[s]['pval'] = pearsonr(values, ages)
+        res[s]['data'] = json.dumps(values)
+    return res
 
 def eucl(vector):
     return math.sqrt(sum(v**2 for v in vector))
 
-def cosined(v1, ages, eucl_ages = None, mean_ages = None, eucl_v1 = None):
-    return sum(v*a for v, a in izip(v1, ages))/((eucl_v1 if eucl_v1 else eucl(v1)) * eucl_ages)
+def _cosined(values, eucl_values, ages, eucl_ages):
+    return sum(v*a for v, a in izip(values, ages))/(eucl_values * eucl_ages)
 
-def calc_pval(method, score, values, random_ages = None):
-    if not hasattr(calc_pval, 'RTWIN_AGES'):
-        if random_ages is None:
-            random_ages = []
-            for i in range(100):
-                _x = twin_age.values()
-                random.shuffle(_x)
-                random_ages.append(_x)
-
-        calc_pval.RTWIN_AGES = random_ages
-    
-    return len(filter(lambda x: x >= score,
-                [ method(values, rage) for rage in calc_pval.RTWIN_AGES])) / float(len(calc_pval.RTWIN_AGES))
-
-
-
-def apply_method(method, values, ages, random_ages = None):
-    if not hasattr(apply_method, 'cache'):
-        apply_method.cache = {'eucl_ages' : eucl(ages),
-                              'mean_ages' : mean(ages)}
-    if not all(v == 0 for v in values):
-        if method is pearsonr:
-            score, pval = pearsonr(values, ages)
-        else:
-            score = method(values, ages, **apply_method.cache)
-            pval = calc_pval(method, score, values, random_ages = random_ages)
-    else:
-        score = 0
-        pval = 1
-    return score, pval
-
-
-def deltas(method, sites, data, ages = None):
-    if ages is None: ages = TWIN_PAIR_AGES
-
-    random_ages = list(permutations(ages))
+def cosined(sites, data, ages, deltas = False):
     res = {}
+    eucl_ages = eucl(ages)
+    random_ages = list(permutations(ages)) if deltas else gen_random_ages()
     for s in sites:
-        deltas = [abs(data[t1][s] - data[t2][s]) for t1, t2 in twinpairs]
+        values = (getvd if deltas else getvf)(data, s)
+        if all(v == 0 for v in values):
+            continue
+
         res[s] = {}
-        res[s]['score'], res[s]['pval'] = apply_method(method, deltas, ages, random_ages = random_ages)
-
-        res[s]['data'] = json.dumps({'deltas': deltas, 'data' : [[data[t1][s], data[t2][s]] for t1, t2 in twinpairs]})
-    return res
-
-
-
-def fragments(method, sites, data, ages = None):
-    if ages is None: ages = TWIN_AGES
-
-    res = {}
-
-    for s in sites:
-        values = [data[t][s] for t in TWINS]
-        res[s] = {}
-        res[s]['score'], res[s]['pval'] = apply_method(method, values, ages)
+        eucl_values = eucl(values)
+        res[s]['score'] = _cosined(values, eucl_values, ages, eucl_ages)
+        res[s]['pval'] = len(filter(lambda x: x >= res[s]['score'],
+                                    [ _cosined(values, eucl_values, rage, eucl_ages) for rage in random_ages])) / float(len(random_ages))
         res[s]['data'] = json.dumps(values)
     return res
 
+def mean(array):
+    return float(sum(array))/len(array)
+
+def _dotprod(values, mean_values, ages, mean_ages):
+    return sum((val - mean_values) * (age - mean_ages) for val, age in izip(values, ages))
+
+
+def dotprod(sites, data, ages, deltas = False):
+    res = {}
+    mean_ages = mean(ages)
+    random_ages = list(permutations(ages)) if deltas else gen_random_ages()
+    for s in sites:
+        values = (getvd if deltas else getvf)(data, s)
+        if all(v == 0 for v in values):
+            continue
+        res[s] = {}
+        mean_values = mean(values)
+        res[s]['score'] = _dotprod(values, mean_values, ages, mean_ages)
+        res[s]['pval'] = len(filter(lambda x: x >= res[s]['score'],
+                                    [  _dotprod(values, mean_values, rage, mean_ages) for rage in random_ages])) / float(len(random_ages))
+        res[s]['data'] = json.dumps(values)
+    return res
 
 
 def FDR(res, alpha = 0.05):
@@ -133,11 +133,11 @@ if __name__ == '__main__':
     sites = sorted(sites)
 #    res = pearsonr_on_individual_fragment_deltas(sites, data)
 #    method = dotprod_on_individual_fragments
-    resolution = fragments
-    method = cosined
+    method = cc
+    deltas = False
 #    method = pearsonr_on_individual_fragments
 #    method = pearsonr_on_individual_fragments_minus_means
-    res = resolution(method, sites, data)
+    res = method(sites, data, TWIN_PAIR_AGES if deltas else TWIN_AGES, deltas = deltas)
     fdr = FDR(res)
 #    fdr = 1
     print fdr
@@ -146,11 +146,9 @@ if __name__ == '__main__':
 
     print 'Accepted:', len([s for s in sorted(res, key = lambda k: res[k]['score'], reverse = True) if res[s].get('pval', -1) <= fdr])
 
-    out = open(os.path.join(DATA_DIR, '%s_%s.out' % (resolution.func_name, method.func_name)), 'w')
+    out = open(os.path.join(DATA_DIR, '%s_%s.out' % (method.func_name, 'deltas' if deltas else 'fragments')), 'w')
     out.write("Fragment number\tscore\tP-value\tData\tAnnotation\n")
     for s in sorted(res, key = lambda k: res[k]['score'], reverse = True):
-        if s == 147302:
-            print "%d\t%f\t%f\t%s\t%s\n" % (s, res[s]['score'], res[s].get('pval', -1), res[s]['data'], anno[s])
         if res[s].get('pval', -1) <= fdr:
             out.write("%d\t%f\t%f\t%s\t%s\n" % (s, res[s]['score'], res[s].get('pval', -1), res[s]['data'], anno[s]))
     out.close()
@@ -175,4 +173,4 @@ if __name__ == '__main__':
 
 
 
-    elapsed('%s_%s.out' % (resolution.func_name, method.func_name))
+    elapsed('%s_%s.out' % (method.func_name, 'deltas' if deltas else 'fragments'))
