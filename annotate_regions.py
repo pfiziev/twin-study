@@ -50,7 +50,7 @@ if __name__ == '__main__':
         chrNo = fields[5]
         if chrNo not in anno:
            anno[chrNo] = []
-        anno[chrNo].append({'type'  : 'repeat|%s' % (fields[12] if fields[12] in ['ERV1', 'L1', 'Alu'] else 'Other'),
+        anno[chrNo].append({'type'  : 'repeat|%s' % (fields[12] if fields[12] in ['ERV1', 'L1', 'Alu','centr','MaLR','L2','ERVL','ERVK'] else 'Other'),
                             'info'  : '%s|%s|%s'% tuple(fields[10:13]),
                             'start' : int(fields[6]),
                             'end'   : int(fields[7])

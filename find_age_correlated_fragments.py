@@ -14,14 +14,16 @@ TWIN_PAIR_AGES = [twin_age[t1] for t1, t2 in twinpairs]
 
 
 
-getvf = lambda data, s: [data[t][s] for t in TWINS]
-getvd = lambda data, s: [abs(data[t1][s] - data[t2][s]) for t1, t2 in twinpairs]
+#getvf = lambda data, s: [data[t][s] for t in TWINS]
+getvf = lambda data, s: [float("%.2lf" % data[t][s]) for t in TWINS]
+getvd = lambda data, s: [float("%.2lf" % abs(data[t1][s] - data[t2][s])) for t1, t2 in twinpairs]
+#getvd = lambda data, s: [abs(data[t1][s] - data[t2][s]) for t1, t2 in twinpairs]
 
 
 
 def gen_random_ages():
     random_ages = []
-    for i in range(100):
+    for i in range(50000):
         _x = twin_age.values()
         random.shuffle(_x)
         random_ages.append(_x)
@@ -32,7 +34,7 @@ def cc(sites, data, ages, deltas = False):
     res = {}
     for s in sites:
         values = (getvd if deltas else getvf)(data, s)
-        if all(v == 0 for v in values):
+        if len(set(values)) == 1:
             continue
 
         res[s] = {}
@@ -49,7 +51,7 @@ def _cosined(values, eucl_values, ages, eucl_ages):
 def cosined(sites, data, ages, deltas = False):
     res = {}
     eucl_ages = eucl(ages)
-    random_ages = list(permutations(ages)) if deltas else gen_random_ages()
+    random_ages = list(permutations(ages))[1:] if deltas else gen_random_ages()
     for s in sites:
         values = (getvd if deltas else getvf)(data, s)
         if all(v == 0 for v in values):
@@ -73,7 +75,7 @@ def _dotprod(values, mean_values, ages, mean_ages):
 def dotprod(sites, data, ages, deltas = False):
     res = {}
     mean_ages = mean(ages)
-    random_ages = list(permutations(ages)) if deltas else gen_random_ages()
+    random_ages = list(permutations(ages))[1:] if deltas else gen_random_ages()
     for s in sites:
         values = (getvd if deltas else getvf)(data, s)
         if all(v == 0 for v in values):
@@ -94,8 +96,8 @@ def FDR(res, alpha = 0.05):
 #            print i,s, pprint.pformat(res[s])
         if res[s]['pval'] <= (i+1)*alpha/len(res):
             pval = res[s]['pval']
-        else:
-            break
+#        else:
+#            break
     return pval
         
 
@@ -129,47 +131,49 @@ if __name__ == '__main__':
             print len(current_sites), len(sites)
 
     elapsed('reading data')
-
     sites = sorted(sites)
+
 #    res = pearsonr_on_individual_fragment_deltas(sites, data)
 #    method = dotprod_on_individual_fragments
-    method = cc
+    method = dotprod
     deltas = False
+    alpha = 1 #0.05
 #    method = pearsonr_on_individual_fragments
 #    method = pearsonr_on_individual_fragments_minus_means
     res = method(sites, data, TWIN_PAIR_AGES if deltas else TWIN_AGES, deltas = deltas)
-    fdr = FDR(res)
-#    fdr = 1
+#    fdr = FDR(res, alpha=0.37)
+#    fdr = FDR(res, alpha = alpha)
+    fdr = 1
     print fdr
 
     elapsed('calculating scores')
 
     print 'Accepted:', len([s for s in sorted(res, key = lambda k: res[k]['score'], reverse = True) if res[s].get('pval', -1) <= fdr])
 
-    out = open(os.path.join(DATA_DIR, '%s_%s.out' % (method.func_name, 'deltas' if deltas else 'fragments')), 'w')
-    out.write("Fragment number\tscore\tP-value\tData\tAnnotation\n")
+    out = open(os.path.join(DATA_DIR, '%s_%s_%.2lf.out' % ('deltas' if deltas else 'fragments', method.func_name, alpha)), 'w')
+    out.write("#fragment\tscore\tp-value\tdata\tannotation\n")
     for s in sorted(res, key = lambda k: res[k]['score'], reverse = True):
         if res[s].get('pval', -1) <= fdr:
             out.write("%d\t%f\t%f\t%s\t%s\n" % (s, res[s]['score'], res[s].get('pval', -1), res[s]['data'], anno[s]))
     out.close()
 
     elapsed('real data')
-    
-#    rtimes = 2
+#
+#    rtimes = 10
 #    raccepted = 0
-#    rage = TWIN_AGES
+#    rage = TWIN_PAIR_AGES if deltas else TWIN_AGES
 #
 #    for rs in xrange(rtimes):
 #        random.shuffle(rage)
-#        res = resolution(method, sites, data, ages = rage)
-#        fdr = FDR(res)
-#        print pprint.pformat([s for s in sorted(res, key = lambda k: res[k]['score'], reverse = True) if res[s].get('pval', -1) <= fdr][:10])
+#        res = method(sites, data, rage, deltas = deltas)
+#        fdr = FDR(res, alpha = alpha)
+##        print pprint.pformat([s for s in sorted(res, key = lambda k: res[k]['score'], reverse = True) if res[s].get('pval', -1) <= fdr][:10])
 #        print 'random fdr:', fdr
 #        _raccepted =  len([s for s in sorted(res, key = lambda k: res[k]['score'], reverse = True) if res[s].get('pval', -1) <= fdr])
 #        print '_raccepted:', _raccepted, '\n\n'
 #        raccepted += _raccepted
 #    print "Random: ", float(raccepted)/rtimes
-#
+
 
 
 

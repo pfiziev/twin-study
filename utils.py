@@ -76,3 +76,13 @@ def addTo(_dict, _key, _val, default = None):
     if _key not in _dict:
         _dict[_key] = default if default is not None else 0
     _dict[_key] += _val
+
+
+def overlap(*args):
+    alls = None
+    for fname in args:
+        ids = [l.split('\t')[0] for l in open(fname,'r')]
+
+        alls = set(ids) if alls is None else alls & set(ids)
+        print fname, len(ids), len(alls)
+    print len(alls)
