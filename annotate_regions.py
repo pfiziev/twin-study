@@ -1,3 +1,4 @@
+from itertools import izip
 import json
 import multiprocessing
 from pprint import pformat
@@ -26,6 +27,26 @@ if __name__ == '__main__':
                             'start' : start,
                             'end' : end
                             })
+
+        exon_starts = map(int, filter(None, fields[9].split(',')))
+        exon_ends = map(int, filter(None, fields[10].split(',')))
+
+        for i in xrange(len(exon_starts)):
+            anno[chrNo].append({'type' : 'exon',
+                                'info':  {'geneId': geneId, 'exon' : i + 1},
+                                'start' : exon_starts[i],
+                                'end' : exon_ends[i]
+                                })
+            if i != len(exon_starts) - 1:
+                anno[chrNo].append({'type' : 'intron',
+                                    'info':  {'geneId': geneId, 'intron' : i + 1},
+                                    'start' : exon_ends[i] + 1,
+                                    'end' : exon_starts[i + 1] - 1
+                                    })
+
+
+
+
 
         if fields[3] == '+':
             promotor_start = start - 3700
@@ -101,14 +122,23 @@ if __name__ == '__main__':
             cPos = 0
 
         tag = json.dumps([])
+
+        def total_overlap(s1, e1, s2, e2):
+            return s1 <= s2 and e1 >= e2 or s2 <= s1 and e2 >= e1
+
+        def partial_overlap(s1, e1, s2, e2):
+            return s1 <= e2 and s2 <= e1 and min(e1, e2) - max(s1, s2) >= 10
+
+
         while cPos < len(cAnno) and cAnno[cPos]['end'] < regStart:
             cPos += 1
 
         if cPos < len(cAnno):
             iPos = cPos
             regs = []
-            while cAnno[iPos]['start'] < regStart and regEnd < cAnno[iPos]['end']:
-                regs.append(cAnno[iPos])
+            while iPos < len(cAnno) and cAnno[iPos]['start'] <= regEnd:
+                if partial_overlap(cAnno[iPos]['start'], cAnno[iPos]['end'], regStart, regEnd):
+                    regs.append(cAnno[iPos])
                 iPos += 1
             tag = json.dumps(regs)
             
