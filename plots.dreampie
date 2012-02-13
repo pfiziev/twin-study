@@ -1,0 +1,128 @@
+## mapability plot
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+mp = [13.83,33.44,9.18,20.03,24.07,31.19,25.15,31.47,16.69,4.69]
+
+fig = plt.figure()
+
+ind = np.arange(10)  # the x locations for the groups
+width = 0.8       # the width of the bars
+
+twins = ['T%d' % i for i in range(1, 11)]
+plt.subplot(111)
+rects1 = plt.bar(ind, mp, width,
+                    color='b')
+
+
+# add some
+plt.yticks(fontsize = 12)
+plt.ylabel('% uniquely mapped reads', fontsize = 14)
+plt.xlabel('Twins', fontsize = 14)
+#plt.ylim(0,100)
+plt.xticks(ind+width/2, tuple(twins), fontsize = 14 )
+plt.title('Mapability')
+
+
+##################################################################################################
+##################################################################################################
+## CG coverage plot
+
+
+
+import os, re
+tw_stats = {}
+for fname in os.listdir('d:/uclA/Matteo/twindata/data/'):
+    if not fname.endswith('CGmap'):
+        continue
+    print fname
+    tw = fname.split('_')[0]
+    tw_stats[tw] = { '1' : 0, '4': 0 }
+
+    for l in open('d:/uclA/Matteo/twindata/data/'+fname):
+        chrNo, nucl, pos, methType, methSubtype, methLevel, methReads, totalReads = filter(None,re.split(r'\s+',l))
+        totalReads = int(totalReads)
+        if methType != 'CG': continue
+
+        if totalReads >= 1:
+            tw_stats[tw]['1'] += 1
+        if totalReads >= 4:
+            tw_stats[tw]['4'] += 1
+
+from pprint import pformat
+print pformat(tw_stats)
+
+## the plot
+
+import numpy as np
+import matplotlib.pyplot as plt
+fig = plt.figure()
+
+
+ind = np.arange(10)  # the x locations for the groups
+width = 0.35       # the width of the bars
+
+twins = ['T%d' % i for i in range(1, 11)]
+plt.subplot(111)
+rects1 = plt.bar(ind, [tw_stats[t]['1'] for t in twins], width,
+                    color='y')
+
+rects2 = plt.bar(ind+width, [tw_stats[t]['4'] for t in twins], width,
+                    color='r')
+
+# add some
+plt.yticks(fontsize = 12)
+plt.ylabel('# CG sites', fontsize = 14)
+plt.xlabel('Twins', fontsize = 14)
+plt.ylim(0,4500000)
+plt.xticks(ind+width, tuple(twins), fontsize = 14 )
+plt.title('Coverage of CG sites')
+
+plt.legend( (rects1[0], rects2[0]), ('>= 1 read', '>= 4 reads'), loc = 'upper right' )
+
+
+
+##################################################################################################
+##################################################################################################
+## total genome CG sites
+
+import os
+cgs = 0
+for fname in os.listdir('d:/uclA/Matteo/twindata/data/annotation/hg18'):
+    print fname
+    for l in open('d:/uclA/Matteo/twindata/data/annotation/hg18/'+fname):
+        if l[0] == '>':
+            prevl = False
+            continue
+
+        l = l.strip().upper()
+
+        if prevl and l[0] == 'G':
+            cgs += 2
+
+        prevl = l[-1] == 'C'
+
+        for i in xrange(len(l) - 1):
+            if l[i:i+2] == 'CG':
+                cgs += 2
+print cgs
+
+## total CG sites in our fragments
+fcgs = 0
+for l in open('d:/uclA/Matteo/twindata/data/annotation/fragments.fa'):
+        if l[0] == '>':
+            prevl = False
+            continue
+        
+        l = l.strip().upper()
+
+        if prevl and l[0] == 'G':
+            fcgs += 2
+
+        prevl = l[-1] == 'C'
+
+        for i in xrange(len(l) - 1):
+            if l[i:i+2] == 'CG':
+                fcgs += 2
+print fcgs

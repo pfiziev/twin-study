@@ -2,30 +2,24 @@ from itertools import izip
 import json
 import multiprocessing
 from pprint import pformat
+import re
 from utils import *
-
-def process(tw1, tw2):
-    highpriority()
-
-    elapsed("%s %s" % (tw1, tw2))
-
 
 
 if __name__ == '__main__':
     anno = {}
+    
     print "reading refGene"
     for l in open(os.path.join(ANNO_DIR, 'refGene.txt'), 'r'):
         fields = l.split('\t')
         chrNo = fields[2]
         geneId = fields[1]
-        geneSymbol = fields[12]
         if chrNo not in anno:
             anno[chrNo] = []
         start = int(fields[4])
         end = int(fields[5])
         anno[chrNo].append({'type' : 'gene',
-                            'info': {'geneId': geneId, 'geneSymbol' : geneSymbol},
-                            'geneSymbol' : geneSymbol,
+                            'info': geneId,
                             'start' : start,
                             'end' : end
                             })
@@ -35,15 +29,13 @@ if __name__ == '__main__':
 
         for i in xrange(len(exon_starts)):
             anno[chrNo].append({'type' : 'exon',
-                                'info':  {'geneId': geneId, 'exon' : i + 1, 'geneSymbol' : geneSymbol,},
-
+                                'info':  {'geneId': geneId, 'exon' : i + 1},
                                 'start' : exon_starts[i],
                                 'end' : exon_ends[i]
                                 })
             if i != len(exon_starts) - 1:
                 anno[chrNo].append({'type' : 'intron',
-                                    'info':  {'geneId': geneId, 'intron' : i + 1, 'geneSymbol' : geneSymbol,},
-
+                                    'info':  {'geneId': geneId, 'intron' : i + 1},
                                     'start' : exon_ends[i] + 1,
                                     'end' : exon_starts[i + 1] - 1
                                     })
@@ -61,7 +53,7 @@ if __name__ == '__main__':
             promotor_start = promotor_end - 4000
 
         anno[chrNo].append({'type' : 'promotor',
-                            'info' : {'geneId': geneId, 'geneSymbol' : geneSymbol},
+                            'info' : geneId,
                             'start' : promotor_start,
                             'end' : promotor_end
                             })
@@ -117,9 +109,22 @@ if __name__ == '__main__':
 
     cChrom, cAnno, cPos = None, None, None
 
-    out = open(os.path.join(ANNO_DIR,'RRBS_mapable_regions.info.annotated'), 'w')
-    for l in open(os.path.join(ANNO_DIR,'RRBS_mapable_regions.info'), 'r'):
-        chrNo, regId, regStart, regEnd = map(int, l.split('\t'))
+    out = open(os.path.join(ANNO_DIR,'common_sites.annotated_'), 'w')
+    sites = None
+
+    for fname in os.listdir(DATA_DIR):
+        if fname.endswith('.CGmap') and fname.split('_')[0] not in ['T1', 'T3', 'T9' ,'T10']:
+
+            c_sites = set()
+            for l in open(os.path.join(DATA_DIR, fname), 'r'):
+                chrNo, nucl, pos, methType, methSubtype, methLevel, methReads, totalReads = filter(None,re.split(r'\s+',l))
+                if int(totalReads) >= 4 and methType == 'CG':
+                    c_sites.add((int(chrNo), int(pos)))
+            sites = c_sites if sites is None else sites & c_sites
+            elapsed(fname)
+
+    print "sites in common:", len(sites)
+    for chrNo, site_pos in sorted(sites):
         chrNo = 'chr%s' % (str(chrNo) if chrNo <= 22 else ['X','Y','M'][chrNo-23])
 
         if cChrom != chrNo:
@@ -129,26 +134,21 @@ if __name__ == '__main__':
 
         tag = json.dumps([])
 
-        def total_overlap(s1, e1, s2, e2):
-            return s1 <= s2 and e1 >= e2 or s2 <= s1 and e2 >= e1
-
-        def partial_overlap(s1, e1, s2, e2):
-            return s1 <= e2 and s2 <= e1 and min(e1, e2) - max(s1, s2) >= 10
 
 
-        while cPos < len(cAnno) and cAnno[cPos]['end'] < regStart:
+        while cPos < len(cAnno) and cAnno[cPos]['end'] < site_pos:
             cPos += 1
 
         if cPos < len(cAnno):
             iPos = cPos
             regs = []
-            while iPos < len(cAnno) and cAnno[iPos]['start'] <= regEnd:
-                if partial_overlap(cAnno[iPos]['start'], cAnno[iPos]['end'], regStart, regEnd):
+            while iPos < len(cAnno) and cAnno[iPos]['start'] <= site_pos:
+                if site_pos <= cAnno[iPos]['end']:
                     regs.append(cAnno[iPos])
                 iPos += 1
             tag = json.dumps(regs)
-            
-        out.write("\t".join(map(str, [chrNo, regId, regStart, regEnd, tag])) + "\n")
+
+        out.write("\t".join(map(str, [chrNo, site_pos, tag])) + "\n")
 
 
 
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     elapsed('annotating')
     out.close()
 
-        
+
 
 #    process([(tw, regions) for tw in datafiles.keys()[:1]][0])
 #    multiprocessing.Pool(processes = 5).map(process, [(tw, annotation) for tw in datafiles])

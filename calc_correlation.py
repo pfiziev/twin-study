@@ -1,8 +1,11 @@
 import json
+from numpy.core.multiarray import arange
+import pylab
 from utils import *
 import re
 import multiprocessing
 from scipy.stats.stats import pearsonr
+import matplotlib.pyplot as plt
 
 def read_twdata(fname):
     regions = {}
@@ -36,7 +39,7 @@ def calc_cc(tw1, tw1_data, tw2, tw2_data, filter = None):
 
 if __name__ == '__main__':
 
-    anno = { 'all' : None }
+    anno = { 'All' : None }
 
     for l in open(os.path.join(ANNO_DIR,'RRBS_mapable_regions.info.annotated')):
         _, regId, _, _, regAnno = l.split('\t')
@@ -49,34 +52,141 @@ if __name__ == '__main__':
 
     data = dict((tw, read_twdata(datafiles[tw]+'.regions')) for tw in twins)
     elapsed('reading twin data')
+
+
+    # plot average methylation per region
+
+    cut = reduce(lambda x,y: x&y, (set(data[t]) for t in data ))
+    def calc_am(sites, cut, filter = None):
+        cut = (cut & filter if filter is not None else cut)
+        return sum(sites[f] for f in cut)/len(cut)
+
+    am = dict((regType, dict((tw, calc_am(data[tw], cut, filter = anno[regType])) for tw in twins)) for regType in anno)
+
+
+
+    print 'Average Methylation per Region'
+
+    fig = plt.figure()
+    ax = plt.subplot(111)
+    plt.ylim(0,1)
+    plt.xlim(0.5, 10.5)
+
+    x = arange(1,11)
+    for rt in sorted(am):
+        print rt,'fragments:%d' % len((cut & anno[rt]) if anno[rt] is not None else cut)  ,'\t', ' '.join(str(am[rt][t]) for t in twins)
+        if not rt.startswith('repeat') or rt == 'repeat|All':
+            ax.plot(x, [am[rt][t] for t in twins], 'o-', label = rt)
+
+    plt.xticks( x,  tuple(twins) )
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+    fig.savefig('methylation_per_region1.png')
+
+    # plot repeats
+    fig = plt.figure()
+    ax = plt.subplot(111)
+    plt.ylim(0,1)
+    plt.xlim(0.5,10.5)
+
+
+    repTypeNo = 0
+    for rt in sorted(am):
+        if rt.startswith('repeat'):
+            repTypeNo += 1
+            if repTypeNo == 8:
+                plt.xticks( x ,  tuple(twins) )
+                box = ax.get_position()
+                ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+                ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+                fig.savefig('methylation_per_region2.png')
+                fig = plt.figure()
+                ax = plt.subplot(111)
+                plt.ylim(0,1)
+                plt.xlim(0.5,10.5)
+
+
+            ax.plot(x, [am[rt][t] for t in twins], 'o-', label = rt.split('|')[1])
+
+    plt.xticks( x ,  tuple(twins) )
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+    fig.savefig('methylation_per_region3.png')
+
+    print '\n\n'
+
+
+    # calculate and plot correlation
+
     ccs = dict((regType, [calc_cc(tw1, data[tw1], tw2, data[tw2], filter = anno[regType]) for tw1, tw2 in twinpairs]) for regType in anno)
     elapsed('calc ccs')
 
+    summary_cc = {}
+    fig = plt.figure()
+    ax = plt.subplot(111)
+    plt.xlim(xmin = 20,xmax = 56)
 
-#    ccs = [calc_cc(tw1, data[tw1], tw2, data[tw2]) for tw1, tw2 in twinpairs]
-#    ccs = [calc_cc(tw1, data[tw1], tw2, data[tw2]) for tw1, tw2 in random_twin_pairs]
-#
     for regType in sorted(ccs):
 #        print regType
         sorted_ccs = sorted(ccs[regType], key = lambda x: twin_age[x['id']])
-        print "Summary:", regType, "CC:%f\tP-value:%f" % pearsonr([cc['cc'][0] for cc in sorted_ccs],[twin_age[cc['id']] for cc in sorted_ccs])
+        summary_cc[regType] = pearsonr([cc['cc'][0] for cc in sorted_ccs],[twin_age[cc['id']] for cc in sorted_ccs])
+        print "Summary:", regType, "CC:%f\tP-value:%f" % summary_cc[regType]
         for cc in sorted_ccs:
 #            print cc['pair'],'\t','age:',twin_age[cc['id']],'\t', 'cc:',cc['cc'][0],'\t','p-value',cc['cc'][1],'\t', 'sites:', cc['sites']
             print regType,'\t', twin_age[cc['id']],'\t', cc['cc'][0],'\t', cc['sites']
+
+        if not regType.startswith('repeat') or regType == 'repeat|All':
+            ax.plot([twin_age[cc['id']] for cc in sorted_ccs],[cc['cc'][0] for cc in sorted_ccs], 'o-', label = regType)
+
+
         print "\n"
-#    print 'average cc:', sum(cc['cc'][0] for cc in ccs)/len(ccs)
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    fig.savefig('correlation_per_region_type.png')
+
+    fig = plt.figure()
+    ax = plt.subplot(111)
+
+    plt.xlim(xmin = 20,xmax = 56)
+
+    repTypeNo = 0
+    for regType in sorted(ccs):
+        sorted_ccs = sorted(ccs[regType], key = lambda x: twin_age[x['id']])
+        if regType.startswith('repeat'):
+            repTypeNo += 1
+            ax.plot([twin_age[cc['id']] for cc in sorted_ccs],[cc['cc'][0] for cc in sorted_ccs],'o-' if repTypeNo <= 7 else 'o--', label = regType.split('|')[1])
+
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    ax.set_ylabel('Pearson correlation')
+    ax.set_xlabel('Age')
+
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+    fig.savefig('correlation_repeats.png')
+
+    fig = plt.figure()
+    ax = plt.subplot(111)
+
+    regTypes = list(sorted(summary_cc, key = lambda k: summary_cc[k][0]))
+#    print regTypes
+    _ar = pylab.arange(len(regTypes))
+    ax.bar(_ar, [summary_cc[rt][0] for rt in regTypes])
+    pylab.xticks( _ar+0.3,  tuple([r.split('|')[-1] if r != 'repeat|All' else r for r in regTypes]), rotation= 'vertical' )
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0*3, box.width, box.height*0.7])
+    ax.set_ylabel('Pearson correlation')
+    ax.set_xlabel('Age')
+
+    fig.savefig('correlation_ranks.png')
 
 
-#if __name__ == '__main__':
-#    for tw1, tw2 in twinpairs:
-#        print "Twin pair: %s %s" % (tw1, tw2)
-#        tw1_data, tw1_ids = read_twdata(datafiles[tw1])
-#        elapsed("info %s" % tw1)
-#        tw2_data, tw2_ids = read_twdata(datafiles[tw2])
-#        elapsed("info %s" % tw2)
-#        out = open(os.path.join(DATA_DIR, "%s_%s.sites" % (tw1, tw2)), 'w')
-#        for site in tw1_ids & tw2_ids:
-#            out.write("%s, %s\n" % (tw1_data[site], tw2_data[site]))
-#
-#        out.close()
-#        elapsed("done")
