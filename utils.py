@@ -2,29 +2,54 @@ from itertools import product, chain
 import os
 import datetime
 import math
+import re
 
 
-_twins = dict(  T1 = 'XB002L1',
-                T2 = 'XB002L2',
-                T3 = 'XB002L3',
-                T4 = 'XB002L5',
-                T5 = 'XB002L6',
-                T6 = 'VB015L1',
-                T7 = 'VB015L2',
-                T8 = 'VB015L3',
-                T9 = 'XA004L5',
-                T10 = 'XA004L6' )
+twinpairs = {}
+GAY_TWINS = []
+HETERO_TWINS = []
+twin_age = {}
+_twins = {}
+
+_path = os.path.split(__file__)[0]
+pwd = lambda p: os.path.join(_path, p)
 
 
-twinpairs = [('T7','T8'),
-             ('T5','T6'),
-             ('T1','T2'),
-             ('T9','T10'),
-             ('T3','T4')]
+twin_info = open(pwd('CGmap/twin_info'))
+for line in twin_info:
+    if line.startswith('#') or line.strip() == '': continue
+    _twin_pair_id, _twin_id, _gay, _filename, _age = line.strip().split('\t')
 
-# True if gay, False if hetero
-GAY_TWINS    = frozenset(['T1', 'T3', 'T5', 'T7', 'T9' ])
-HETERO_TWINS = frozenset(['T2', 'T4', 'T6', 'T8', 'T10'])
+    twin_age[_twin_id] = int(_age)
+    (GAY_TWINS if _gay == '1' else HETERO_TWINS).append(_twin_id)
+    if _twin_pair_id not in twinpairs: twinpairs[_twin_pair_id] = []
+    twinpairs[_twin_pair_id].append(_twin_id)
+    _twins[_twin_id] = _filename
+
+twin_info.close()
+twinpairs = map(tuple, twinpairs.values())
+
+#_twins = dict(  T1 = 'XB002L1',
+#                T2 = 'XB002L2',
+#                T3 = 'XB002L3',
+#                T4 = 'XB002L5',
+#                T5 = 'XB002L6',
+#                T6 = 'VB015L1',
+#                T7 = 'VB015L2',
+#                T8 = 'VB015L3',
+#                T9 = 'XA004L5',
+#                T10 = 'XA004L6' )
+#
+#
+#twinpairs = [('T7','T8'),
+#             ('T5','T6'),
+#             ('T1','T2'),
+#             ('T9','T10'),
+#             ('T3','T4')]
+#
+## True if gay, False if hetero
+#GAY_TWINS    = frozenset(['T1', 'T3', 'T5', 'T7', 'T9' ])
+#HETERO_TWINS = frozenset(['T2', 'T4', 'T6', 'T8', 'T10'])
 
 
 random_twin_pairs = [pair for pair in product([tp[0] for tp in twinpairs],[tp[1] for tp in twinpairs]) if pair not in twinpairs]
@@ -42,39 +67,46 @@ random_twin_pairs = [pair for pair in product([tp[0] for tp in twinpairs],[tp[1]
 
 
 brother = dict((t1, t2) for t1, t2 in twinpairs + [(t2, t1) for t1, t2 in twinpairs])
+#
+#twin_age = {'T7'  : 21,
+#            'T8'  : 21,
+#            'T5'  : 30,
+#            'T6'  : 30,
+#            'T1'  : 38,
+#            'T2'  : 38,
+#            'T9'  : 45,
+#            'T10' : 45,
+#            'T3'  : 55,
+#            'T4'  : 55}
 
-twin_age = {'T7'  : 21,
-            'T8'  : 21,
-            'T5'  : 30,
-            'T6'  : 30,
-            'T1'  : 38,
-            'T2'  : 38,
-            'T9'  : 45,
-            'T10' : 45,
-            'T3'  : 55,
-            'T4'  : 55}
 
 
-twin_random = {'T1': 23,
- 'T10': 33,
- 'T2': 37,
- 'T3': 31,
- 'T4': 55,
- 'T5': 38,
- 'T6': 36,
- 'T7': 29,
- 'T8': 49,
- 'T9': 47}
+
+
+#twin_random = {'T1': 23,
+# 'T10': 33,
+# 'T2': 37,
+# 'T3': 31,
+# 'T4': 55,
+# 'T5': 38,
+# 'T6': 36,
+# 'T7': 29,
+# 'T8': 49,
+# 'T9': 47}
 
 
 
 twins = sorted(twin_age, key = lambda k: twin_age[k])
 
 
+OUTPUT_DIR = pwd('output')
+def outd(filename):
+    return os.path.join(OUTPUT_DIR, filename)
 
-DATA_DIR = os.path.join(os.getcwd(), 'data') 
 
-_datafiles = [os.path.join(DATA_DIR, fname) for fname in os.listdir(DATA_DIR) if fname.endswith('.CGmap')]
+DATA_DIR = pwd('CGmap')
+
+_datafiles = [os.path.join(DATA_DIR, fname) for fname in os.listdir(DATA_DIR) if fname.endswith('.CGmap.gz')]
 datafiles = dict((key, filter(lambda x: _twins[key] in x, _datafiles)[0]) for key in _twins)
 
 stime = datetime.datetime.now()
@@ -82,9 +114,11 @@ def elapsed(msg = None):
     print "[%s]" % msg if msg is not None else "+", "Elapsed: " , datetime.datetime.now() - stime
 
 
-ANNO_DIR = os.path.join(DATA_DIR,'annotation')
+ANNO_DIR = pwd('annotation')
 
 regionsinfo = os.path.join(ANNO_DIR, "RRBS_mapable_regions.info")
+
+#OUTPUT_DIR = os.path.join(os.getcwd(),'output')
 
 
 def highpriority():
@@ -135,3 +169,8 @@ def std(X):
 
 def mean(array):
     return float(sum(array))/len(array)
+
+
+logf = open(os.path.join(DATA_DIR, 'log'), 'a')
+def logm(message):
+    logf.write('[%s] %s\n' % (str(datetime.datetime.now()), message))

@@ -1,18 +1,18 @@
+import gzip
 import multiprocessing
 import re
-import time
 from utils import *
 
 
 def process((tw, regions)):
-    highpriority()
+#    highpriority()
     print "Twin:", tw
     cRegion = 0
     cChrom = None
     a_regions = {}
     newReg = True
     sitesInNextRegion = []
-    for l in open(datafiles[tw],'r').readlines():
+    for l in gzip.open(datafiles[tw],'r'):
         chrNo, nucl, pos, methType, methSubtype, methLevel, methReads, totalReads = filter(None,re.split(r'\s+',l))
         totalReads = int(totalReads)
         methLevel = float(methLevel)
@@ -75,5 +75,5 @@ if __name__ == '__main__':
         regions[chrNo].append((regNo, regStart, regEnd))
     elapsed("regions")
 #    process([(tw, regions) for tw in datafiles.keys()[:1]][0])
-    multiprocessing.Pool(processes = 5).map(process, [(tw, regions) for tw in datafiles])
+    multiprocessing.Pool(processes = 4).map(process, [(tw, regions) for tw in datafiles])
 

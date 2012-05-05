@@ -72,7 +72,7 @@ if __name__ == '__main__':
     plt.ylim(0,1)
     plt.xlim(0.5, 10.5)
 
-    x = arange(1,11)
+    x = arange(1,len(twins) + 1)
     for rt in sorted(am):
         print rt,'fragments:%d' % len((cut & anno[rt]) if anno[rt] is not None else cut)  ,'\t', ' '.join(str(am[rt][t]) for t in twins)
         if not rt.startswith('repeat') or rt == 'repeat|All':
@@ -84,7 +84,7 @@ if __name__ == '__main__':
 
     ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-    fig.savefig('methylation_per_region1.png')
+    fig.savefig(outd('methylation_per_region1.png'))
 
     # plot repeats
     fig = plt.figure()
@@ -103,7 +103,7 @@ if __name__ == '__main__':
                 ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
 
                 ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-                fig.savefig('methylation_per_region2.png')
+                fig.savefig(outd('methylation_per_region2.png'))
                 fig = plt.figure()
                 ax = plt.subplot(111)
                 plt.ylim(0,1)
@@ -118,7 +118,7 @@ if __name__ == '__main__':
 
     ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-    fig.savefig('methylation_per_region3.png')
+    fig.savefig(outd('methylation_per_region3.png'))
 
     print '\n\n'
 
@@ -151,7 +151,7 @@ if __name__ == '__main__':
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
 
     ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-    fig.savefig('correlation_per_region_type.png')
+    fig.savefig(outd('correlation_per_region_type.png'))
 
     fig = plt.figure()
     ax = plt.subplot(111)
@@ -172,7 +172,7 @@ if __name__ == '__main__':
 
     ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-    fig.savefig('correlation_repeats.png')
+    fig.savefig(outd('correlation_repeats.png'))
 
     fig = plt.figure()
     ax = plt.subplot(111)
@@ -187,6 +187,6 @@ if __name__ == '__main__':
     ax.set_ylabel('Pearson correlation')
     ax.set_xlabel('Age')
 
-    fig.savefig('correlation_ranks.png')
+    fig.savefig(outd('correlation_ranks.png'))
 
 

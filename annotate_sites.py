@@ -1,3 +1,4 @@
+import gzip
 from itertools import izip
 import json
 import multiprocessing
@@ -109,14 +110,14 @@ if __name__ == '__main__':
 
     cChrom, cAnno, cPos = None, None, None
 
-    out = open(os.path.join(ANNO_DIR,'common_sites.annotated_'), 'w')
+    out = open(os.path.join(ANNO_DIR,'common_sites.annotated'), 'w')
     sites = None
 
     for fname in os.listdir(DATA_DIR):
-        if fname.endswith('.CGmap') and fname.split('_')[0] not in ['T1', 'T3', 'T9' ,'T10']:
-
+        if fname.endswith('.CGmap.gz'):# and fname.split('_')[0] not in ['T1', 'T3', 'T9' ,'T10']:
+            print fname
             c_sites = set()
-            for l in open(os.path.join(DATA_DIR, fname), 'r'):
+            for l in gzip.open(os.path.join(DATA_DIR, fname)):
                 chrNo, nucl, pos, methType, methSubtype, methLevel, methReads, totalReads = filter(None,re.split(r'\s+',l))
                 if int(totalReads) >= 4 and methType == 'CG':
                     c_sites.add((int(chrNo), int(pos)))
@@ -124,6 +125,7 @@ if __name__ == '__main__':
             elapsed(fname)
 
     print "sites in common:", len(sites)
+    logm("sites in common: "+ str(len(sites)))
     for chrNo, site_pos in sorted(sites):
         chrNo = 'chr%s' % (str(chrNo) if chrNo <= 22 else ['X','Y','M'][chrNo-23])
 
