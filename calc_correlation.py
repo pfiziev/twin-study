@@ -4,6 +4,10 @@ import pylab
 from utils import *
 import re
 import multiprocessing
+
+import matplotlib
+matplotlib.use('Agg')
+
 from scipy.stats.stats import pearsonr
 import matplotlib.pyplot as plt
 

@@ -5,7 +5,7 @@ import pprint
 import random
 import re
 import math
-from scipy.stats.stats import pearsonr, spearmanr
+from scipy.stats.stats import pearsonr
 from utils import *
 
 
@@ -103,27 +103,25 @@ def FDR(res, alpha = 0.05):
 
 
 if __name__ == '__main__':
-    DATA_DIR = os.path.join(os.getcwd(), 'data')
 
     sites = None
     data = {}
-    for fname in os.listdir(DATA_DIR):
-        if fname.endswith('.CGmap.regions'):
+    for twin_id, fname in datafiles.items():
+        fname += '.regions'
+        cdata = {}
+        print fname
 
-            cdata = {}
-            print fname
+        current_sites = set()
 
-            current_sites = set()
-            
-            for l in open(os.path.join(DATA_DIR, fname), 'r'):
-                chrNo, regId, start, end, regSites, methLevel = filter(None, re.split(r'\s+',l))
-                regId = int(regId)
-                current_sites.add(regId)
-                cdata[regId] = float(methLevel)
+        for l in open(fname, 'r'):
+            chrNo, regId, start, end, regSites, methLevel = filter(None, re.split(r'\s+',l))
+            regId = int(regId)
+            current_sites.add(regId)
+            cdata[regId] = float(methLevel)
 
-            sites = current_sites if sites is None else sites & current_sites
-            data[fname.split('_')[0]] = cdata
-            print len(current_sites), len(sites)
+        sites = current_sites if sites is None else sites & current_sites
+        data[twin_id] = cdata
+        print len(current_sites), len(sites)
 
     elapsed('reading data')
     sites = sorted(sites)
@@ -134,7 +132,7 @@ if __name__ == '__main__':
 
 
     result = {}
-    for testTwin in data:
+    for testTwin in sorted(data):
 
         res = cc(sites, data, [twin_age[tw] for tw in TWINS if tw not in [testTwin, brother[testTwin]]], testTwin = testTwin)
 
@@ -148,6 +146,6 @@ if __name__ == '__main__':
 
         elapsed(testTwin)
 
-    json.dump(result, open(os.path.join(DATA_DIR, 'fragments_for_age_prediction_top100.out_'), 'w'))
+    json.dump(result, open(os.path.join(DATA_DIR, 'fragments_for_age_prediction_top100.out_new'), 'w'))
 
     elapsed('end')

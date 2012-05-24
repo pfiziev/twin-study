@@ -108,6 +108,9 @@ DATA_DIR = pwd('CGmap')
 
 _datafiles = [os.path.join(DATA_DIR, fname) for fname in os.listdir(DATA_DIR) if fname.endswith('.CGmap.gz')]
 datafiles = dict((key, filter(lambda x: _twins[key] in x, _datafiles)[0]) for key in _twins)
+file2twin = dict((fname, twin_id) for twin_id, fname in datafiles.items())
+
+
 
 stime = datetime.datetime.now()
 def elapsed(msg = None):
@@ -174,3 +177,101 @@ def mean(array):
 logf = open(os.path.join(DATA_DIR, 'log'), 'a')
 def logm(message):
     logf.write('[%s] %s\n' % (str(datetime.datetime.now()), message))
+
+
+
+def read_annotation():
+    anno = {}
+    print "reading refGene"
+    for l in open(os.path.join(ANNO_DIR, 'refGene.txt'), 'r'):
+        fields = l.split('\t')
+        chrNo = fields[2]
+        geneId = fields[1]
+        if chrNo not in anno:
+            anno[chrNo] = []
+        start = int(fields[4])
+        end = int(fields[5])
+        geneSymbol = fields[12]
+        anno[chrNo].append({'type' : 'gene',
+                            'info': {'geneId': geneId, 'geneSymbol' : geneSymbol},
+                            'geneSymbol' : geneSymbol,
+                            'start' : start,
+                            'end' : end
+        })
+
+        exon_starts = map(int, filter(None, fields[9].split(',')))
+        exon_ends = map(int, filter(None, fields[10].split(',')))
+
+        for i in xrange(len(exon_starts)):
+            anno[chrNo].append({'type' : 'exon',
+                                'info':  {'geneId': geneId, 'exon' : i + 1, 'geneSymbol' : geneSymbol},
+                                'start' : exon_starts[i],
+                                'end' : exon_ends[i]
+            })
+            if i != len(exon_starts) - 1:
+                anno[chrNo].append({'type' : 'intron',
+                                    'info':  {'geneId': geneId, 'intron' : i + 1, 'geneSymbol' : geneSymbol},
+                                    'start' : exon_ends[i] + 1,
+                                    'end' : exon_starts[i + 1] - 1
+                })
+
+
+
+
+
+        if fields[3] == '+':
+            promotor_start = start - 3700
+            promotor_end = promotor_start + 4000
+        else:
+            # for minus strand keep start < end (reverse start and end)
+            promotor_end = end + 3700
+            promotor_start = promotor_end - 4000
+
+        anno[chrNo].append({'type' : 'promotor',
+                            'info' : {'geneId': geneId, 'geneSymbol' : geneSymbol},
+                            'start' : promotor_start,
+                            'end' : promotor_end
+        })
+
+
+
+    print "reading repeats info"
+    for l in open(os.path.join(ANNO_DIR, 'repeats.txt'), 'r'):
+        if l.startswith('#bin'): continue
+        fields = l.split('\t')
+        chrNo = fields[5]
+        if chrNo not in anno:
+            anno[chrNo] = []
+        anno[chrNo].append({'type'  : 'repeat|%s' % (fields[12] if fields[12] in ['ERV1', 'L1', 'Alu','centr','MaLR','L2',
+                                                                                  'ERVL','ERVK','Simple_repeat','MIR','MER1_type',
+                                                                                  'Low_complexity','L2'] else 'Other'),
+                            'info'  : '%s|%s|%s'% tuple(fields[10:13]),
+                            'start' : int(fields[6]),
+                            'end'   : int(fields[7])
+        })
+        anno[chrNo].append({'type'  : 'repeat|All',
+                            'info'  : '%s|%s|%s'% tuple(fields[10:13]),
+                            'start' : int(fields[6]),
+                            'end'   : int(fields[7])
+        })
+
+    print "reading CpG island info"
+    for l in open(os.path.join(ANNO_DIR, 'cpgIslandExt.txt'), 'r'):
+        fields = l.split('\t')
+        chrNo = fields[0]
+        if chrNo not in anno:
+            anno[chrNo] = []
+        anno[chrNo].append({'type'  : 'CpG island',
+                            'start' : int(fields[1]),
+                            'end'   : int(fields[2])
+        })
+
+
+    elapsed("reading annotation")
+    for chrNo in anno:
+        anno[chrNo] = sorted(anno[chrNo], key = lambda x: x['start'])
+    elapsed('sorting')
+
+
+    print sum(len(anno[c]) for c in anno)
+    return anno

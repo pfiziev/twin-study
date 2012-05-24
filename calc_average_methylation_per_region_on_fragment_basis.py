@@ -15,33 +15,33 @@ if __name__ == '__main__':
     anno = { 'All' : set() }
     common_sites = set()
     chroms = set()
-    for l in open(os.path.join(ANNO_DIR,'common_sites.annotated')):
-        chr_no, site_pos, regAnno = l.split('\t')
+    for l in open(os.path.join(ANNO_DIR, 'RRBS_mapable_regions.info.annotated')):
+        chr_no, frag_no, frag_start, frag_end, reg_anno = l.split('\t')
         chroms.add(chr_no)
-        regAnno = json.loads(regAnno)
-        for annoDict in regAnno:
-            if annoDict['type'] not in anno:
-                anno[annoDict['type']] = set()
-            anno[annoDict['type']].add((chr_no, site_pos))
+        reg_anno = json.loads(reg_anno)
+        for anno_dict in reg_anno:
+            if anno_dict['type'] not in anno:
+                anno[anno_dict['type']] = set()
+            anno[anno_dict['type']].add(frag_no)
 
-        anno['All'].add((chr_no, site_pos))
-        
+        anno['All'].add(frag_no)
+
     elapsed('annotation')
 
-    sites = {}
+    fragments = {}
     for tw, fname in datafiles.items():
-        sites[tw] = dict((chrom, {}) for chrom in chroms)
-        for l in gzip.open(os.path.join(DATA_DIR, fname), 'r'):
-            chrNo, nucl, pos, methType, methSubtype, methLevel, methReads, totalReads = filter(None,re.split(r'\s+',l))
-            chrNo = int(chrNo)
-            if int(totalReads) >= 4 and methType == 'CG':
-                sites[tw]['chr%s' % (str(chrNo) if chrNo <= 22 else ['X','Y','M'][chrNo-23])][pos] = float(methLevel)
+        fragments[tw] = {}
+        for l in open(os.path.join(DATA_DIR, fname + '.regions')):
+
+            chr_no, reg_id, start, end, regSites, meth_level = filter(None, re.split(r'\s+', l))
+            fragments[tw][reg_id] = float(meth_level)
+
         elapsed(fname)
     elapsed('reading twin data')
 
-    am =  dict((regType, dict((tw, sum(sites[tw][chrNo][pos] for chrNo, pos in anno[regType])/len(anno[regType]))
-                                        for tw in twins))
-                                            for regType in anno)
+    am =  dict((regType, dict((tw, mean([fragments[tw][frag_id] for frag_id in anno[regType] if frag_id in fragments[tw]]))
+                    for tw in twins))
+                            for regType in anno)
 
 
 
@@ -56,7 +56,7 @@ if __name__ == '__main__':
 
     x = arange(1,len(twins)+1)
     for rt in sorted(am):
-        print rt,'sites:%d' % len((anno[rt]))  ,'\t', ' '.join(t+':'+str(am[rt][t]) for t in twins)
+        print rt,'fragments:%d' % len((anno[rt]))  ,'\t', ' '.join(t+':'+str(am[rt][t]) for t in twins)
         if not rt.startswith('repeat') or rt == 'repeat|All':
             ax.plot(x, [am[rt][t] for t in twins], 'o-', label = rt)
 
@@ -66,7 +66,7 @@ if __name__ == '__main__':
 
     ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-    fig.savefig('sites_methylation_per_region1.png')
+    fig.savefig(outd('fragments_methylation_per_region1.png'))
 
     # plot repeats
     fig = plt.figure()
@@ -85,7 +85,7 @@ if __name__ == '__main__':
                 ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
 
                 ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-                fig.savefig('sites_methylation_per_region2.png')
+                fig.savefig(outd('fragments_methylation_per_region2.png'))
                 fig = plt.figure()
                 ax = plt.subplot(111)
                 plt.ylim(0,1)
@@ -100,6 +100,6 @@ if __name__ == '__main__':
 
     ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
-    fig.savefig('sites_methylation_per_region3.png')
+    fig.savefig(outd('fragments_methylation_per_region3.png'))
 
     print '\n\n'
