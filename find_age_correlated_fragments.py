@@ -21,10 +21,10 @@ getvd = lambda data, s: [round(abs(data[t1][s] - data[t2][s]), 22) for t1, t2 in
 
 
 
-def gen_random_ages():
+def gen_random_ages(ages = None):
     random_ages = []
-    for i in range(1):
-        _x = twin_age.values()
+    for i in range(10):
+        _x = twin_age.values() if ages is None else ages
         random.shuffle(_x)
         random_ages.append(_x)
     return random_ages
@@ -76,8 +76,9 @@ def mono(sites, data, ages, deltas = False):
 
 def cc(sites, data, ages, deltas = False):
     res = {}
-    random_ages = list(permutations(ages)) if deltas else gen_random_ages()
-    mean_ages = mean(ages)
+#    random_ages = list(permutations(ages)) if deltas else gen_random_ages()
+    random_ages =  gen_random_ages(ages)
+#    mean_ages = mean(ages)
     for s in sites:
         values = (getvd if deltas else getvf)(data, s)
         if len(set(values)) == 1:
@@ -88,7 +89,7 @@ def cc(sites, data, ages, deltas = False):
         res[s] = {}
 
         res[s]['score'], res[s]['pval'] = pearsonr(values, ages)
-        mean_values = mean(values)
+#        mean_values = mean(values)
 #        res[s]['score'], res[s]['pval'] = _pearsonr(values, mean_values, ages, mean_ages), 0
         res[s]['data'] = json.dumps(values)
 
@@ -202,23 +203,22 @@ if __name__ == '__main__':
 
     sites = None
     data = {}
-    for fname in os.listdir(DATA_DIR):
-        if fname.endswith('.CGmap.regions'):
+    for twin_id in datafiles:
+        fname = reg_fname(twin_id)
+        cdata = {}
 
-            cdata = {}
+        print fname
 
-            print fname
+        current_sites = set()
+        for l in open(fname):
+            chrNo, regId, start, end, regSites, methLevel = filter(None,re.split(r'\s+',l))
+            regId = int(regId)
+            current_sites.add(regId)
+            cdata[regId] = float(methLevel)
 
-            current_sites = set()
-            for l in open(os.path.join(DATA_DIR, fname), 'r'):
-                chrNo, regId, start, end, regSites, methLevel = filter(None,re.split(r'\s+',l))
-                regId = int(regId)
-                current_sites.add(regId)
-                cdata[regId] = float(methLevel)
-
-            sites = current_sites if sites is None else sites & current_sites
-            data[fname.split('_')[0]] = cdata
-            print len(current_sites), len(sites)
+        sites = current_sites if sites is None else sites & current_sites
+        data[twin_id] = cdata
+        print len(current_sites), len(sites)
 
     elapsed('reading data')
     sites = sorted(sites)
@@ -226,21 +226,21 @@ if __name__ == '__main__':
 #    res = pearsonr_on_individual_fragment_deltas(sites, data)
 #    method = dotprod_on_individual_fragments
     method = cc
-    deltas = False
+    deltas = True
     alpha = 0.15
 #    method = pearsonr_on_individual_fragments
 #    method = pearsonr_on_individual_fragments_minus_means
     res = method(sites, data, TWIN_PAIR_AGES if deltas else TWIN_AGES, deltas = deltas)
 #    fdr = FDR(res, alpha=0.37)
     fdr = FDR(res, alpha = alpha)
-#    fdr = 1
+    fdr = 1
     print fdr
 
     elapsed('calculating scores')
 
     print 'Accepted:', len([s for s in sorted(res, key = lambda k: res[k]['score'], reverse = True) if res[s].get('pval', -1) <= fdr])
 
-    out = open(os.path.join(DATA_DIR, '%s_%s_%.2lf.out' % ('deltas' if deltas else 'fragments', method.func_name, alpha)), 'w')
+    out = open(outd('%s_%s_%.2lf.out' % ('deltas' if deltas else 'fragments', method.func_name, alpha)), 'w')
     out.write("#fragment\tscore\tp-value\trscore\tdata\tannotation\n")
     for s in sorted(res, key = lambda k: res[k]['score'], reverse = True):
         if res[s].get('pval', -1) <= fdr:

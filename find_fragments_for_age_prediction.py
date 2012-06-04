@@ -106,9 +106,11 @@ if __name__ == '__main__':
 
     sites = None
     data = {}
-    for twin_id, fname in datafiles.items():
-        fname += '.regions'
+    for twin_id in datafiles:
+        fname = reg_fname(twin_id)
+
         cdata = {}
+
         print fname
 
         current_sites = set()
@@ -140,12 +142,12 @@ if __name__ == '__main__':
 
 #        result[testTwin] = [s for s in sorted(res, key = lambda k: res[k]['score'], reverse = True) if res[s].get('pval', -1) <= fdr]
 
-        result[testTwin] = [(s, res[s]['score']) for s in sorted(res, key = lambda k: abs(res[k]['score']), reverse = True)][:100]
+        result[testTwin] = [(s, res[s]['score']) for s in sorted(res, key = lambda k: abs(res[k]['score']), reverse = True)][:500]
 
 #        print testTwin , 'FDR:', fdr, 'Accepted:', len(result[testTwin])
 
         elapsed(testTwin)
 
-    json.dump(result, open(os.path.join(DATA_DIR, 'fragments_for_age_prediction_top100.out_new'), 'w'))
+    json.dump(result, open(os.path.join(DATA_DIR, 'fragments_for_age_prediction_top100.out'), 'w'))
 
     elapsed('end')

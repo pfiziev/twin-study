@@ -57,6 +57,6 @@ if __name__ == '__main__':
         print "TWIN:%s\tAGE:%d\tMETH_LEVEL:%f\n" % (twin_id, twin_age[twin_id], stats[twin_id])
 
 
-    logm('Average methylation: \n'+ json.dumps([(twin_id, twin_age[twin_id], stats[twin_id]) for twin_id in twins]))
+    logm('Average methylation: \ns'+ json.dumps([(twin_id, twin_age[twin_id], stats[twin_id]) for twin_id in twins]))
 
         

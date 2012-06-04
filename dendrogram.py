@@ -14,7 +14,7 @@ def read_data(fname):
 fs = {}
 
 for twin in datafiles:
-    fs[twin] = read_data(datafiles[twin] + '.regions')
+    fs[twin] = read_data(reg_fname(twin))
 
 
 cut = None

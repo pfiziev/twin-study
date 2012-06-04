@@ -31,7 +31,7 @@ if __name__ == '__main__':
     fragments = {}
     for tw, fname in datafiles.items():
         fragments[tw] = {}
-        for l in open(os.path.join(DATA_DIR, fname + '.regions')):
+        for l in open(reg_fname(tw)):
 
             chr_no, reg_id, start, end, regSites, meth_level = filter(None, re.split(r'\s+', l))
             fragments[tw][reg_id] = float(meth_level)

@@ -99,18 +99,26 @@ brother = dict((t1, t2) for t1, t2 in twinpairs + [(t2, t1) for t1, t2 in twinpa
 twins = sorted(twin_age, key = lambda k: twin_age[k])
 
 
-OUTPUT_DIR = pwd('output')
-def outd(filename):
-    return os.path.join(OUTPUT_DIR, filename)
 
 
 DATA_DIR = pwd('CGmap')
+datad = lambda filename: os.path.join(DATA_DIR, filename)
 
-_datafiles = [os.path.join(DATA_DIR, fname) for fname in os.listdir(DATA_DIR) if fname.endswith('.CGmap.gz')]
+_datafiles = [datad(fname) for fname in os.listdir(DATA_DIR) if fname.endswith('.CGmap.gz')]
 datafiles = dict((key, filter(lambda x: _twins[key] in x, _datafiles)[0]) for key in _twins)
 file2twin = dict((fname, twin_id) for twin_id, fname in datafiles.items())
 
+old_twins = sorted([t for t in datafiles if int(t[1:]) <=10])
+new_twins = sorted([t for t in datafiles if int(t[1:]) > 10])
 
+
+OUTPUT_DIR = os.path.join(pwd('output'), 'equal_means_normalized')
+def outd(filename):
+    return os.path.join(OUTPUT_DIR, filename)
+
+reg_fname = lambda twin_id: datafiles[twin_id] + '.regions' + ('.equal_means_normalized' if twin_id in new_twins else '')
+#reg_fname = lambda twin_id: datafiles[twin_id] + '.regions' + ('.quantile_normalized' if twin_id in new_twins else '')
+#reg_fname = lambda twin_id: datafiles[twin_id] + '.regions' + ('.loess_normalized' if twin_id in new_twins else '')
 
 stime = datetime.datetime.now()
 def elapsed(msg = None):

@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('Agg')
+
 import json
 from numpy.core.multiarray import arange
 import pylab
@@ -5,8 +8,6 @@ from utils import *
 import re
 import multiprocessing
 
-import matplotlib
-matplotlib.use('Agg')
 
 from scipy.stats.stats import pearsonr
 import matplotlib.pyplot as plt
@@ -54,7 +55,7 @@ if __name__ == '__main__':
             anno[annoDict['type']].add(regId)
     elapsed('annotation')
 
-    data = dict((tw, read_twdata(datafiles[tw]+'.regions')) for tw in twins)
+    data = dict((tw, read_twdata(reg_fname(tw))) for tw in twins)
     elapsed('reading twin data')
 
 
@@ -160,7 +161,7 @@ if __name__ == '__main__':
     fig = plt.figure()
     ax = plt.subplot(111)
 
-    plt.xlim(xmin = 20,xmax = 56)
+    plt.xlim(xmin = 20, xmax = 56)
 
     repTypeNo = 0
     for regType in sorted(ccs):
